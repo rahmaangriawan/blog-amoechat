@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { DashboardNav } from "@/components/DashboardNav";
 import { DashboardHeader } from "@/components/DashboardHeader";
-import { isCmsAuthenticated, getSession, getSessionRole } from "@/lib/auth";
+import { getSession, getSessionRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 
@@ -15,11 +15,8 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  if (!(await isCmsAuthenticated())) {
-    redirect("/login");
-  }
-
   const [role, session] = await Promise.all([getSessionRole(), getSession()]);
+  if (!role || !session) redirect("/login");
   const resolvedRole = role ?? "MEMBER";
 
   let displayName = "";

@@ -10,8 +10,12 @@ const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = process.env.CMS_ADMIN_EMAIL || "admin@amoechat.com";
-  const password = process.env.CMS_ADMIN_PASSWORD || "admin12345";
+  const email = process.env.CMS_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.CMS_ADMIN_PASSWORD;
+
+  if (!email || !password || password.length < 12) {
+    throw new Error("CMS_ADMIN_EMAIL dan CMS_ADMIN_PASSWORD (minimal 12 karakter) wajib diatur sebelum menjalankan seed.");
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {

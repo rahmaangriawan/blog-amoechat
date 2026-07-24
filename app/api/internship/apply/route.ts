@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 import { emitNotification } from "@/lib/notifications";
 import { syncInternshipApplicationToSheet } from "@/lib/internship-sheets";
-import { isTrustedMutationRequest } from "@/lib/request-security";
+import { isRequestBodyWithinLimit, isTrustedMutationRequest } from "@/lib/request-security";
 
 const applicationSchema = z.object({
   fullName: z.string().trim().min(2, "Nama minimal 2 karakter").max(150),
@@ -25,6 +25,9 @@ export async function POST(req: Request) {
   try {
     if (!isTrustedMutationRequest(req)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!isRequestBodyWithinLimit(req, 32 * 1024)) {
+      return NextResponse.json({ error: "Payload terlalu besar" }, { status: 413 });
     }
     const limit = rateLimit({
       key: `internship:${getClientIp(req)}`,

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getPublicAuthors } from "@/lib/authors";
 import { buildPageMetadata } from "@/lib/metadata";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildPageMetadata({
@@ -40,7 +41,7 @@ export default async function AuthorIndexPage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
       />
       <main className="container py-12 section-mobile-padding">
         <header className="max-w-3xl">

@@ -4,18 +4,25 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { acceptedAuthCookieNames, authCookieName } from "@/lib/auth-cookie";
 
-const cookieName = "amoechat_cms_session";
+const cookieName = authCookieName();
 const defaultSessionMaxAgeSeconds = 60 * 60 * 8;
 const rememberedSessionMaxAgeSeconds = 60 * 60 * 24 * 7;
 
 export type CmsRole = "SUPER_ADMIN" | "ADMIN" | "MARKETING" | "MEMBER";
+const cmsRoles: readonly CmsRole[] = ["SUPER_ADMIN", "ADMIN", "MARKETING", "MEMBER"];
+
+export function isCmsRole(value: unknown): value is CmsRole {
+  return typeof value === "string" && cmsRoles.includes(value as CmsRole);
+}
 
 interface SessionPayload {
   email: string;
   role: CmsRole;
   iat: number;
   exp?: number;
+  passwordVersion?: string;
 }
 
 function secret() {
@@ -26,9 +33,27 @@ function secret() {
   return value ?? "development-secret";
 }
 
-export function signSession(email: string, role: CmsRole, maxAgeSeconds = defaultSessionMaxAgeSeconds) {
+function passwordVersion(passwordHash: string) {
+  return createHmac("sha256", secret()).update(`password:${passwordHash}`).digest("base64url");
+}
+
+export function signSession(
+  email: string,
+  role: CmsRole,
+  maxAgeSeconds = defaultSessionMaxAgeSeconds,
+  passwordHash?: string,
+) {
   const issuedAt = Date.now();
-  const payload = Buffer.from(JSON.stringify({ email, role, iat: issuedAt, exp: issuedAt + maxAgeSeconds * 1000 }), "utf8").toString("base64url");
+  const payload = Buffer.from(
+    JSON.stringify({
+      email,
+      role,
+      iat: issuedAt,
+      exp: issuedAt + maxAgeSeconds * 1000,
+      ...(passwordHash ? { passwordVersion: passwordVersion(passwordHash) } : {}),
+    }),
+    "utf8",
+  ).toString("base64url");
   const signature = createHmac("sha256", secret()).update(payload).digest("base64url");
   return `${payload}.${signature}`;
 }
@@ -45,7 +70,14 @@ export function verifySession(token?: string): false | SessionPayload {
 
   try {
     const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as SessionPayload;
-    if (typeof parsed.iat !== "number") return false;
+    if (
+      typeof parsed.email !== "string"
+      || !parsed.email
+      || !isCmsRole(parsed.role)
+      || typeof parsed.iat !== "number"
+      || (parsed.exp !== undefined && typeof parsed.exp !== "number")
+      || (parsed.passwordVersion !== undefined && typeof parsed.passwordVersion !== "string")
+    ) return false;
     const expiresAt = typeof parsed.exp === "number" ? parsed.exp : parsed.iat + defaultSessionMaxAgeSeconds * 1000;
     if (Date.now() >= expiresAt) return false;
     return parsed;
@@ -56,7 +88,11 @@ export function verifySession(token?: string): false | SessionPayload {
 
 export async function getSession(): Promise<false | SessionPayload> {
   const cookieStore = await cookies();
-  return verifySession(cookieStore.get(cookieName)?.value);
+  for (const name of acceptedAuthCookieNames()) {
+    const session = verifySession(cookieStore.get(name)?.value);
+    if (session) return session;
+  }
+  return false;
 }
 
 export async function isCmsAuthenticated() {
@@ -70,32 +106,36 @@ export async function getSessionRole(): Promise<CmsRole | null> {
   try {
     const user = await (prisma as any).user.findUnique({
       where: { email: session.email },
-      select: { role: true, isActive: true },
+      select: { role: true, isActive: true, passwordHash: true },
     });
-    if (!user?.isActive || !["SUPER_ADMIN", "ADMIN", "MARKETING", "MEMBER"].includes(user.role)) {
+    if (!user?.isActive || !isCmsRole(user.role)) {
       return null;
     }
+    if (session.passwordVersion && session.passwordVersion !== passwordVersion(user.passwordHash)) return null;
     return user.role as CmsRole;
   } catch {
     return null;
   }
 }
 
-export async function setCmsSession(email: string, role: CmsRole, remember = false) {
+export async function setCmsSession(email: string, role: CmsRole, remember = false, passwordHash?: string) {
   const maxAge = remember ? rememberedSessionMaxAgeSeconds : defaultSessionMaxAgeSeconds;
   const cookieStore = await cookies();
-  cookieStore.set(cookieName, signSession(email, role, maxAge), {
+  cookieStore.set(cookieName, signSession(email, role, maxAge, passwordHash), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge,
+    priority: "high",
   });
 }
 
 export async function clearCmsSession() {
   const cookieStore = await cookies();
-  cookieStore.delete(cookieName);
+  for (const name of acceptedAuthCookieNames()) {
+    cookieStore.delete(name);
+  }
 }
 
 /**

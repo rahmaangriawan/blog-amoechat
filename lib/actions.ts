@@ -1,11 +1,12 @@
 "use server";
 
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { clearCmsSession, getSession, getSessionRole, setCmsSession } from "@/lib/auth";
+import { clearCmsSession, getSession, getSessionRole, isCmsRole, setCmsSession } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -21,6 +22,7 @@ import { testInternshipSheetConnection } from "@/lib/internship-sheets";
 import sanitizeHtml from "sanitize-html";
 import type { Metadata } from "sharp";
 import { encryptSecret } from "@/lib/secret-storage";
+import { publicImagePathToAbsolute } from "@/lib/media-path";
 
 export async function saveGoogleIntegration(formData: FormData) {
   await requireSuperAdmin();
@@ -216,6 +218,8 @@ const mediaSchema = z.object({
   currentFilePath: z.string().optional(),
 });
 
+const cmsRoleSchema = z.enum(["SUPER_ADMIN", "ADMIN", "MARKETING", "MEMBER"]);
+
 const articleCategorySchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2),
@@ -386,7 +390,7 @@ function sanitizeFileName(fileName: string, extension: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "media";
-  return `${baseName}-${Date.now()}.${extension}`;
+  return `${baseName}-${randomUUID()}.${extension}`;
 }
 
 const detectedImageTypes = {
@@ -430,9 +434,8 @@ async function persistMediaFile(file: File) {
 }
 
 async function removeFileIfExists(publicPath?: string | null) {
-  if (!publicPath || !publicPath.startsWith("/images/")) return;
-
-  const absolutePath = path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
+  const absolutePath = publicImagePathToAbsolute(publicPath);
+  if (!absolutePath) return;
   await rm(absolutePath, { force: true });
 }
 
@@ -511,7 +514,11 @@ export async function loginCms(formData: FormData) {
     redirect(`/login?error=1&next=${encodeURIComponent(next)}`);
   }
 
-  await setCmsSession(user.email, user.role as "SUPER_ADMIN" | "ADMIN" | "MARKETING" | "MEMBER", remember);
+  if (!isCmsRole(user.role)) {
+    redirect(`/login?error=1&next=${encodeURIComponent(next)}`);
+  }
+
+  await setCmsSession(user.email, user.role, remember, user.passwordHash);
   redirect(next.startsWith("/dashboard") ? next : "/dashboard");
 }
 
@@ -525,12 +532,6 @@ export async function logoutCms() {
 async function requireSuperAdmin() {
   const role = await getSessionRole();
   if (role !== "SUPER_ADMIN") throw new Error("Unauthorized");
-}
-
-async function requireAuth() {
-  const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
-  return session;
 }
 
 async function buildUniqueAuthorSlug(name: string, currentUserId?: string) {
@@ -558,13 +559,13 @@ export async function createUser(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const role = String(formData.get("role") ?? "MEMBER") as "SUPER_ADMIN" | "ADMIN" | "MARKETING" | "MEMBER";
+  const role = cmsRoleSchema.safeParse(String(formData.get("role") ?? "MEMBER"));
   const isAuthor = formData.get("isAuthor") === "true" || formData.get("isAuthor") === "on";
   const authorRole = String(formData.get("authorRole") ?? "").trim();
   const authorBio = String(formData.get("authorBio") ?? "").trim();
   const authorAvatarUrl = String(formData.get("authorAvatarUrl") ?? "").trim();
 
-  if (!name || !email || password.length < 8) {
+  if (!name || !email || password.length < 8 || !role.success) {
     return { error: "Data tidak valid. Password minimal 8 karakter." };
   }
 
@@ -576,7 +577,7 @@ export async function createUser(formData: FormData) {
         name,
         email,
         passwordHash,
-        role,
+        role: role.data,
         isAuthor,
         authorSlug,
         authorRole: authorRole || defaultAuthor.role,
@@ -601,14 +602,14 @@ export async function updateUser(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const role = String(formData.get("role") ?? "MEMBER") as "SUPER_ADMIN" | "ADMIN" | "MARKETING" | "MEMBER";
+  const role = cmsRoleSchema.safeParse(String(formData.get("role") ?? "MEMBER"));
   const isActive = formData.get("isActive") === "true";
   const isAuthor = formData.get("isAuthor") === "true" || formData.get("isAuthor") === "on";
   const authorRole = String(formData.get("authorRole") ?? "").trim();
   const authorBio = String(formData.get("authorBio") ?? "").trim();
   const authorAvatarUrl = String(formData.get("authorAvatarUrl") ?? "").trim();
 
-  if (!id || !name || !email) return { error: "Data tidak valid." };
+  if (!id || !name || !email || !role.success) return { error: "Data tidak valid." };
 
   const current = await (prisma as any).user.findUnique({
     where: { id },
@@ -618,7 +619,7 @@ export async function updateUser(formData: FormData) {
   const data: Record<string, unknown> = {
     name,
     email,
-    role,
+    role: role.data,
     isActive,
     isAuthor,
     authorSlug: current?.authorSlug || (isAuthor ? await buildUniqueAuthorSlug(name, id) : null),
@@ -717,6 +718,10 @@ export async function saveMedia(formData: FormData) {
   const uploaded = await persistMediaFile(file);
 
   if (parsed.id) {
+    const existing = await prisma.media.findUnique({
+      where: { id: parsed.id },
+      select: { filePath: true },
+    });
     await prisma.media.update({
       where: { id: parsed.id },
       data: {
@@ -730,7 +735,7 @@ export async function saveMedia(formData: FormData) {
         isPublished: parsed.isPublished,
       },
     });
-    await removeFileIfExists(parsed.currentFilePath);
+    await removeFileIfExists(existing?.filePath);
   } else {
     await prisma.media.create({
       data: {
@@ -1087,7 +1092,7 @@ export async function saveArticle(formData: FormData) {
     const existingArticle = data.id
       ? await (prisma as any).article.findUnique({
           where: { id: data.id },
-          select: { authorId: true },
+          select: { authorId: true, featuredImage: true },
         })
       : null;
 
@@ -1125,7 +1130,7 @@ export async function saveArticle(formData: FormData) {
     }
 
     const file = formData.get("featuredImage");
-    let featuredImage: string | undefined = data.currentFeaturedImage;
+    let featuredImage: string | undefined = existingArticle?.featuredImage || undefined;
 
     if (file instanceof File && file.size > 0) {
       const uploaded = await persistMediaFile(file);
@@ -1151,8 +1156,8 @@ export async function saveArticle(formData: FormData) {
         },
       });
 
-      if (data.currentFeaturedImage) {
-        await removeFileIfExists(data.currentFeaturedImage);
+      if (existingArticle?.featuredImage) {
+        await removeFileIfExists(existingArticle.featuredImage);
       }
     }
 

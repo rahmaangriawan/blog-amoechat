@@ -11,6 +11,7 @@ import {
 } from "@/lib/amoechat-content";
 import { prisma } from "@/lib/prisma";
 import { getSeoGlobalSettings } from "@/lib/seo-settings";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const revalidate = 300;
 
@@ -132,8 +133,8 @@ export default async function HomePage() {
 
   return (
     <main className="overflow-hidden">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(organizationSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(softwareSchema) }} />
 
       <section className="relative isolate flex min-h-[610px] items-center overflow-hidden bg-[#f9fdfb] md:min-h-[650px]">
         <div className="absolute inset-y-0 right-0 -z-20 w-full md:w-[74%]">

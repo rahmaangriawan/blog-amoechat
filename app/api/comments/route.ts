@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
-import { isTrustedMutationRequest } from "@/lib/request-security";
+import { isRequestBodyWithinLimit, isTrustedMutationRequest } from "@/lib/request-security";
 
 const commentSchema = z.object({
   name: z.string().trim().min(2, "Nama minimal 2 karakter").max(100),
@@ -52,6 +52,9 @@ export async function POST(request: Request) {
   try {
     if (!isTrustedMutationRequest(request)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!isRequestBodyWithinLimit(request, 16 * 1024)) {
+      return NextResponse.json({ error: "Payload terlalu besar" }, { status: 413 });
     }
     const limit = rateLimit({
       key: `comment:${getClientIp(request)}`,

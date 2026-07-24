@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSessionRole } from "@/lib/auth";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 import { PUBLIC_SETTINGS_CACHE_TAG } from "@/lib/public-settings-cache";
 import { clearApiSettingsCache } from "@/lib/api-settings";
-import { isTrustedMutationRequest } from "@/lib/request-security";
+import { isRequestBodyWithinLimit, isTrustedMutationRequest } from "@/lib/request-security";
 
 // Whitelist key yang diizinkan untuk di-upsert via API ini
 const ALLOWED_KEYS = new Set([
@@ -24,8 +24,11 @@ const MAX_VALUE_LENGTH = 16_000;
 
 export async function POST(request: NextRequest) {
   try {
-    if (!isTrustedMutationRequest(request)) {
+    if (!isTrustedMutationRequest(request, { requireSource: true })) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!isRequestBodyWithinLimit(request, 256 * 1024)) {
+      return NextResponse.json({ error: "Payload terlalu besar" }, { status: 413 });
     }
     const limitBucket = rateLimit({
       key: `settings-api:${getClientIp(request)}`,
@@ -36,18 +39,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Terlalu banyak permintaan. Coba lagi nanti." }, { status: 429 });
     }
 
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await (prisma as any).user.findUnique({
-      where: { email: session.email },
-      select: { role: true, isActive: true },
-    });
-
-    if (!user?.isActive || user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ((await getSessionRole()) !== "SUPER_ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const formData = await request.formData();

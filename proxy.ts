@@ -1,9 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { findActiveRedirect } from "@/lib/redirect-cache";
-
-const cookieName = "amoechat_cms_session";
+import { acceptedAuthCookieNames } from "@/lib/auth-cookie";
+import { isTrustedRequestHost } from "@/lib/trusted-host";
 
 export default async function proxy(request: NextRequest) {
+  if (!isTrustedRequestHost(request)) {
+    return new NextResponse("Misdirected Request", { status: 421 });
+  }
+
   const { pathname } = request.nextUrl;
 
   const isPublicDocument =
@@ -30,7 +34,7 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const hasSession = Boolean(request.cookies.get(cookieName)?.value);
+  const hasSession = acceptedAuthCookieNames().some((name) => Boolean(request.cookies.get(name)?.value));
 
   if (pathname.startsWith("/dashboard") && !hasSession) {
     const loginUrl = new URL("/login", request.url);

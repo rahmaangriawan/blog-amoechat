@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
-import { setCmsSession, type CmsRole } from "@/lib/auth";
+import { isCmsRole, setCmsSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
-import { isTrustedMutationRequest, publicOrigin } from "@/lib/request-security";
+import { isRequestBodyWithinLimit, isTrustedMutationRequest, publicOrigin } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 
@@ -41,6 +41,9 @@ async function verifyTurnstile(response: FormDataEntryValue | null) {
 export async function POST(request: NextRequest) {
   if (!isTrustedMutationRequest(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (!isRequestBodyWithinLimit(request, 32 * 1024)) {
+    return NextResponse.json({ error: "Payload terlalu besar" }, { status: 413 });
   }
   const formData = await request.formData();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -86,6 +89,8 @@ export async function POST(request: NextRequest) {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) return loginRedirect(request, next, true);
 
-  await setCmsSession(user.email, user.role as CmsRole, remember);
+  if (!isCmsRole(user.role)) return loginRedirect(request, next, true);
+
+  await setCmsSession(user.email, user.role, remember, user.passwordHash);
   return loginRedirect(request, next);
 }

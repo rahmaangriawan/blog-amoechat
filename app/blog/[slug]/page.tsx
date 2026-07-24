@@ -7,6 +7,7 @@ import { slugify } from "@/lib/format";
 import { buildPageMetadata } from "@/lib/metadata";
 import { getPublicAuthor, toPublicAuthor } from "@/lib/authors";
 import { resolveSeoTokens } from "@/lib/seo-tokens";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const revalidate = 300;
 
@@ -315,9 +316,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   return (
     <>
       <main className="container py-10 section-mobile-padding">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-        {faqJsonLd ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} /> : null}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }} />
+        {faqJsonLd ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }} /> : null}
 
         <nav className="mb-6 flex items-center gap-2 text-sm text-[var(--muted)]" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-[var(--primary)]">

@@ -5,7 +5,7 @@ import { isTrustedMutationRequest, publicOrigin } from "@/lib/request-security";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  if (!isTrustedMutationRequest(request)) {
+  if (!isTrustedMutationRequest(request, { requireSource: true })) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   await clearCmsSession();

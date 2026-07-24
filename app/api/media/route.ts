@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { mkdir, rm, writeFile } from "fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "path";
-import { isCmsAuthenticated, getSessionRole } from "@/lib/auth";
+import { getSessionRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
-import { isTrustedMutationRequest } from "@/lib/request-security";
+import { isRequestBodyWithinLimit, isTrustedMutationRequest } from "@/lib/request-security";
+import { publicImagePathToAbsolute } from "@/lib/media-path";
 
 const optimizedWidth = 1280;
 const optimizedThresholdBytes = 1.5 * 1024 * 1024;
@@ -22,7 +24,7 @@ function sanitizeFileName(fileName: string, extension: string) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "media";
-  return `${baseName}-${Date.now()}.${extension}`;
+  return `${baseName}-${randomUUID()}.${extension}`;
 }
 
 const detectedImageTypes = {
@@ -43,13 +45,6 @@ async function inspectImage(buffer: Buffer) {
   } catch {
     return null;
   }
-}
-
-function publicImagePathToAbsolute(filePath: string) {
-  if (!filePath.startsWith("/images/")) return null;
-  const requestedPath = path.normalize(path.join(process.cwd(), "public", filePath.replace(/^\//, "")));
-  const allowedDir = path.join(process.cwd(), "public", "images");
-  return requestedPath.startsWith(allowedDir + path.sep) ? requestedPath : null;
 }
 
 function withImageResponseFields<T extends { filePath: string }>(item: T, variants: MediaVariant[]) {
@@ -94,7 +89,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: "Terlalu banyak permintaan. Coba lagi nanti." }, { status: 429 });
   }
 
-  if (!(await isCmsAuthenticated()) || (await getSessionRole()) !== "SUPER_ADMIN") {
+  if ((await getSessionRole()) !== "SUPER_ADMIN") {
     return NextResponse.json({ items: [], total: 0 }, { status: 401 });
   }
 
@@ -128,8 +123,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!isTrustedMutationRequest(request)) {
+  if (!isTrustedMutationRequest(request, { requireSource: true })) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+  }
+  if (!isRequestBodyWithinLimit(request, 6 * 1024 * 1024)) {
+    return NextResponse.json({ message: "Payload terlalu besar." }, { status: 413 });
   }
   const limitBucket = rateLimit({
     key: `media:post:${getClientIp(request)}`,
@@ -193,7 +191,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!isTrustedMutationRequest(request)) {
+  if (!isTrustedMutationRequest(request, { requireSource: true })) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
   const limitBucket = rateLimit({
@@ -205,12 +203,12 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ message: "Terlalu banyak permintaan hapus. Coba lagi nanti." }, { status: 429 });
   }
 
-  if (!(await isCmsAuthenticated())) {
+  const role = await getSessionRole();
+  if (!role) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
   // Hanya SUPER_ADMIN yang boleh hapus media
-  const role = await getSessionRole();
   if (role !== "SUPER_ADMIN") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }

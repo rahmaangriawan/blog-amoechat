@@ -44,7 +44,11 @@ function pruneBuckets(now: number) {
   }
 
   if (buckets.size > maxBuckets) {
-    buckets.clear();
+    const overflow = buckets.size - maxBuckets;
+    const oldest = [...buckets.entries()]
+      .sort(([, left], [, right]) => left.resetAt - right.resetAt)
+      .slice(0, overflow);
+    for (const [key] of oldest) buckets.delete(key);
   }
 }
 

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getAuthorBySlug, getPublicAuthors } from "@/lib/authors";
 import { buildPageMetadata } from "@/lib/metadata";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const revalidate = 300;
 
@@ -83,7 +84,7 @@ export default async function AuthorDetailPage({ params }: { params: Promise<{ s
   return (
     <>
       <main className="container py-12 section-mobile-padding">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(personJsonLd) }} />
 
         <section className="rounded-[24px] border border-[var(--line)] bg-white p-6 md:p-8">
           <div className="flex flex-col gap-5 md:flex-row md:items-center">

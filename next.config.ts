@@ -22,6 +22,24 @@ const contentSecurityPolicy = [
   .filter(Boolean)
   .join("; ");
 
+const contentSecurityPolicyReportOnly = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'self'",
+  "form-action 'self'",
+  "script-src 'self' 'report-sample' https://challenges.cloudflare.com https://www.googletagmanager.com https://static.cloudflareinsights.com",
+  "script-src-attr 'none'",
+  "style-src 'self' 'report-sample'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://challenges.cloudflare.com https://www.google-analytics.com https://region1.google-analytics.com https://cloudflareinsights.com",
+  "frame-src 'self' https://challenges.cloudflare.com",
+  "media-src 'self' https: blob:",
+  "worker-src 'self' blob:",
+]
+  .join("; ");
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
@@ -72,6 +90,9 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "Content-Security-Policy", value: contentSecurityPolicy },
+          ...(isProduction
+            ? [{ key: "Content-Security-Policy-Report-Only", value: contentSecurityPolicyReportOnly }]
+            : []),
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },

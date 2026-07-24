@@ -1,0 +1,21 @@
+{
+  "name": "Amoechat",
+  "short_name": "Amoechat",
+  "icons": [
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#08cb52",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}

@@ -1,0 +1,268 @@
+// =====================================================================
+// AMOECHAT Prisma Schema
+// Schema CMS, blog, program magang, dan pengaturan publik Amoechat.
+// Jangan edit manual tanpa sync ke database.
+// =====================================================================
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.0.x", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "rhel-openssl-1.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------
+// Core CMS
+// ---------------------------------------------------------------------
+
+model ApiSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique(map: "ApiSetting_key_key")
+  value     String   @db.Text
+  category  String
+  isSecret  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category], map: "ApiSetting_category_idx")
+  @@map("ApiSetting")
+}
+
+model Article {
+  id              String           @id @default(cuid())
+  title           String
+  slug            String           @unique(map: "Article_slug_key")
+  excerpt         String?          @db.Text
+  content         String?          @db.Text
+  type            String           @default("POST")
+  metaTitle       String?
+  metaDescription String?          @db.Text
+  isPublished     Boolean          @default(false)
+  categoryId      String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  publishedAt     DateTime?
+  featuredImage   String?
+  authorId        String?
+  category        ArticleCategory? @relation(fields: [categoryId], references: [id], map: "Article_categoryId_fkey")
+  author          User?            @relation(fields: [authorId], references: [id], onDelete: SetNull, map: "Article_authorId_fkey")
+  comments        Comment[]
+
+  @@index([categoryId], map: "Article_categoryId_idx")
+  @@index([authorId], map: "Article_authorId_idx")
+  @@index([type, isPublished], map: "Article_type_isPublished_idx")
+  @@map("Article")
+}
+
+model ArticleCategory {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique(map: "ArticleCategory_slug_key")
+  description     String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  metaDescription String?   @db.Text
+  metaTitle       String?
+  articles        Article[]
+
+  @@map("ArticleCategory")
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  name       String
+  email      String
+  body       String   @db.Text
+  articleId  String
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  status     String   @default("PENDING")
+  article    Article  @relation(fields: [articleId], references: [id], onDelete: Cascade, map: "Comment_articleId_fkey")
+
+  @@index([articleId, isApproved], map: "Comment_articleId_isApproved_idx")
+  @@index([createdAt], map: "Comment_createdAt_idx")
+  @@index([status, createdAt], map: "Comment_status_createdAt_idx")
+  @@map("Comment")
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique(map: "Document_slug_key")
+  period      String
+  kind        String
+  sourcePath  String   @db.Text
+  imagePath   String
+  notes       String?  @db.Text
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, period, kind], map: "Document_isPublished_period_kind_idx")
+  @@map("Document")
+}
+
+model Media {
+  id           String   @id @default(cuid())
+  title        String
+  alt          String?
+  fileName     String
+  originalName String
+  filePath     String   @db.Text
+  mimeType     String
+  fileSize     Int
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isPublished, createdAt], map: "Media_isPublished_createdAt_idx")
+  @@map("Media")
+}
+
+model Redirect {
+  id        String   @id @default(cuid())
+  sourceUrl String   @unique(map: "Redirect_sourceUrl_key")
+  targetUrl String
+  type      Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt], map: "Redirect_createdAt_idx")
+  @@index([isActive, type], map: "Redirect_isActive_type_idx")
+  @@map("Redirect")
+}
+
+model InternshipApplication {
+  id              String    @id @default(cuid())
+  fullName        String
+  email           String
+  phoneNumber     String    @db.VarChar(32)
+  institutionName String
+  major           String?
+  educationLevel  String    @db.VarChar(32)
+  internshipType  String    @db.VarChar(32)
+  interestField   String
+  startPeriod     String?   @db.VarChar(64)
+  duration         String?   @db.VarChar(64)
+  portfolioUrl    String?   @db.Text
+  message         String?   @db.Text
+  status          String    @default("PENDING") @db.VarChar(32)
+  sheetSyncedAt   DateTime?
+  sheetSyncError  String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status], map: "InternshipApplication_status_idx")
+  @@index([createdAt], map: "InternshipApplication_createdAt_idx")
+  @@index([phoneNumber], map: "InternshipApplication_phoneNumber_idx")
+  @@map("InternshipApplication")
+}
+
+model SeoGlobal {
+  id                     String   @id @default(cuid())
+  siteTitle              String?  @db.Text
+  metaTitle              String?  @db.Text
+  metaDescription        String?  @db.Text
+  metaKeywords           String?  @db.Text
+  canonicalUrl           String?  @db.Text
+  ogTitle                String?  @db.Text
+  ogDescription          String?  @db.Text
+  ogImage                String?  @db.Text
+  twitterTitle           String?  @db.Text
+  twitterDescription     String?  @db.Text
+  twitterImage           String?  @db.Text
+  headerLogo             String?  @db.Text
+  footerLogo             String?  @db.Text
+  favicon                String?  @db.Text
+  appleTouchIcon         String?  @db.Text
+  ogDefaultImage         String?  @db.Text
+  allowIndexing          Boolean  @default(true)
+  disallowPaths          String?  @db.Text
+  includeBlogSitemap     Boolean  @default(true)
+  includePagesSitemap    Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@map("SeoGlobal")
+}
+
+// ---------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------
+
+model User {
+  id                     String    @id @default(cuid())
+  name                   String
+  email                  String    @unique(map: "User_email_key")
+  passwordHash           String
+  role                   String    @default("MEMBER")
+  isActive               Boolean   @default(true)
+  isAuthor               Boolean   @default(false)
+  authorSlug             String?   @unique(map: "User_authorSlug_key")
+  authorRole             String?   @db.VarChar(120)
+  authorBio              String?   @db.Text
+  authorAvatarUrl        String?   @db.Text
+  lastSeenNotificationAt DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  articles               Article[]
+
+  @@index([isAuthor], map: "User_isAuthor_idx")
+  @@map("User")
+}
+
+// ---------------------------------------------------------------------
+// Notifications + WhatsApp
+// ---------------------------------------------------------------------
+
+model Notification {
+  id         String   @id @default(cuid())
+  type       String   @db.VarChar(64)
+  title      String
+  message    String   @db.Text
+  link       String?  @db.Text
+  entityType String?  @db.VarChar(32)
+  entityId   String?  @db.VarChar(64)
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt], map: "Notification_createdAt_idx")
+  @@index([type], map: "Notification_type_idx")
+  @@map("Notification")
+}
+
+model WhatsAppTemplate {
+  id        String   @id @default(cuid())
+  eventKey  String   @unique(map: "WhatsAppTemplate_eventKey_key") @db.VarChar(64)
+  title     String
+  body      String   @db.Text
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("WhatsAppTemplate")
+}
+
+model WhatsAppLog {
+  id           String    @id @default(cuid())
+  event        String    @db.VarChar(64)
+  phoneNumber  String
+  message      String    @db.Text
+  entityType   String?   @db.VarChar(32)
+  entityId     String?   @db.VarChar(64)
+  status       String    @default("PENDING") @db.VarChar(32)
+  responseBody String?   @db.Text
+  attempts     Int       @default(0)
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status], map: "WhatsAppLog_status_idx")
+  @@index([createdAt], map: "WhatsAppLog_createdAt_idx")
+  @@index([event], map: "WhatsAppLog_event_idx")
+  @@map("WhatsAppLog")
+}

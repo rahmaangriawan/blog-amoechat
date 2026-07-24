@@ -1,0 +1,1 @@
+ALTER TABLE `SeoGlobal` ADD COLUMN `siteTitle` TEXT NULL;

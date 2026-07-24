@@ -1,0 +1,63 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+.turbo/
+.cache/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env
+.env.*
+!.env.example
+
+# Sensitive backup/dump files (jangan commit!)
+*.sql.gz
+*.zip
+/*.sql
+!/schema.sql
+amoechat_backup.sql
+*.db
+*.db-journal
+
+# pnpm store fallback (normalnya berada di user-level store)
+.pnpm-store/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Custom Deployment Folders
+.deploy/
+.deploy_manual/
+amoechat-deploy.zip
+deploy.tar.gz
+
+# SQL dumps (berisi data sensitif)
+*.hosting.sql
+lanyardb_amoechatid_hosting.sql
+
+# Uploads (Jangan di-upload ke git!)
+public/uploads/

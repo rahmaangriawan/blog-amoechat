@@ -1,9 +1,8 @@
 name: Deploy Amoechat to CloudPanel
 
 on:
-  push:
-    branches:
-      - main
+  # Tidak berjalan saat push. Aktifkan dan jalankan manual hanya jika pengguna
+  # secara eksplisit memutuskan memakai GitHub Actions lagi.
   workflow_dispatch:
 
 permissions:

@@ -236,14 +236,21 @@ jobs:
           export PATH="$HOME/.npm-global/bin:$PATH"
           command -v pm2 >/dev/null 2>&1
 
-          if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
-            PORT="$APP_PORT" HOSTNAME="127.0.0.1" NODE_ENV="production" \
-              pm2 reload "$PM2_APP_NAME" --update-env
-          else
-            cd "$CURRENT_LINK"
+          start_release() {
+            local release_path="$1"
+
+            if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
+              pm2 delete "$PM2_APP_NAME"
+            fi
+
+            cd "$release_path"
             PORT="$APP_PORT" HOSTNAME="127.0.0.1" NODE_ENV="production" \
               pm2 start server.js --name "$PM2_APP_NAME" --time
-          fi
+          }
+
+          # PM2 menyimpan path absolut script. Reload saja akan tetap
+          # menjalankan server.js dari rilis lama setelah symlink berpindah.
+          start_release "$CURRENT_LINK"
 
           healthy=false
           for attempt in 1 2 3 4 5 6 7 8 9 10; do
@@ -260,7 +267,7 @@ jobs:
             if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
               ln -sfn "$PREVIOUS_RELEASE" "$DEPLOY_PATH/current.rollback"
               mv -Tf "$DEPLOY_PATH/current.rollback" "$CURRENT_LINK"
-              pm2 reload "$PM2_APP_NAME" --update-env
+              start_release "$CURRENT_LINK"
             else
               pm2 delete "$PM2_APP_NAME" || true
             fi

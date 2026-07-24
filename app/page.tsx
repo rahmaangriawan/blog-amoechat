@@ -222,8 +222,8 @@ export default async function HomePage() {
           </div>
           <div className="relative grid gap-6">
             {setupSteps.map((step, index) => (
-              <article key={step.title} className="grid items-center gap-5 rounded-2xl border border-[var(--line)] bg-white p-6 sm:grid-cols-[92px_56px_1fr] md:p-7">
-                <span className="grid h-[92px] w-[92px] place-items-center rounded-2xl bg-[var(--primary-softer)] text-[var(--primary-strong)]">
+              <article key={step.title} className="grid grid-cols-[56px_1fr] items-center gap-5 rounded-2xl border border-[var(--line)] bg-white p-6 md:grid-cols-[92px_56px_1fr] md:p-7">
+                <span className="hidden h-[92px] w-[92px] place-items-center rounded-2xl bg-[var(--primary-softer)] text-[var(--primary-strong)] md:grid">
                   <HugeIcon icon={step.icon} size={44} strokeWidth={1.8} aria-hidden />
                 </span>
                 <span className="grid h-14 w-14 place-items-center rounded-full bg-[linear-gradient(145deg,#08cb52,#04983c)] text-xl font-black text-white">{index + 1}</span>

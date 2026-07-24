@@ -19,7 +19,7 @@ import { clearApiSettingsCache } from "@/lib/api-settings";
 import { runGA4Report } from "@/lib/ga4";
 import { testInternshipSheetConnection } from "@/lib/internship-sheets";
 import sanitizeHtml from "sanitize-html";
-import sharp, { type Metadata } from "sharp";
+import type { Metadata } from "sharp";
 import { encryptSecret } from "@/lib/secret-storage";
 
 export async function saveGoogleIntegration(formData: FormData) {
@@ -403,6 +403,7 @@ async function persistMediaFile(file: File) {
   const buffer = Buffer.from(await file.arrayBuffer());
   let metadata: Metadata;
   try {
+    const { default: sharp } = await import("sharp");
     metadata = await sharp(buffer, { animated: true, limitInputPixels: 40_000_000 }).metadata();
   } catch {
     throw new Error("Isi file bukan gambar yang valid.");

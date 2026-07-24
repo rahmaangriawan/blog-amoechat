@@ -1,15 +1,13 @@
-name: Deploy Amoechat to CloudPanel
+name: Build Amoechat Manual Deployment Package
 
 on:
-  # Tidak berjalan saat push. Aktifkan dan jalankan manual hanya jika pengguna
-  # secara eksplisit memutuskan memakai GitHub Actions lagi.
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: amoechat-production
+  group: amoechat-manual-build
   cancel-in-progress: false
 
 env:
@@ -18,11 +16,10 @@ env:
   DEFAULT_SITE_URL: "https://blog.amoechat.com"
 
 jobs:
-  build-and-deploy:
-    name: Build and deploy
+  build-package:
+    name: Build standalone package
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    environment: production
 
     steps:
       - name: Checkout repository
@@ -43,14 +40,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate build configuration
-        shell: bash
-        env:
-          NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
-        run: |
-          set -Eeuo pipefail
-          : "${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:?NEXT_SERVER_ACTIONS_ENCRYPTION_KEY belum diatur}"
-
       - name: Lint
         run: pnpm lint
 
@@ -60,200 +49,52 @@ jobs:
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: "1"
           NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || env.DEFAULT_SITE_URL }}
-          NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
-          # Build tidak membaca database production. Query publik sudah memiliki fallback.
+          # Single-server deployment: Next.js membuat dan menyematkan key
+          # Server Actions ke build secara otomatis.
           DATABASE_URL: mysql://build:build@127.0.0.1:3306/amoechat_build
 
       - name: Create deployment archive
         shell: bash
         run: |
           set -Eeuo pipefail
+          shopt -s nullglob
 
           DEPLOY_DIR="$RUNNER_TEMP/amoechat-${GITHUB_SHA}"
-          mkdir -p "$DEPLOY_DIR/.next/static"
+          ARCHIVE="$RUNNER_TEMP/amoechat-${GITHUB_SHA}.tar.gz"
+          mkdir -p "$DEPLOY_DIR/.next/static" "$DEPLOY_DIR/node_modules/@img"
 
           cp -a .next/standalone/. "$DEPLOY_DIR/"
           cp -a .next/static/. "$DEPLOY_DIR/.next/static/"
           cp -a public "$DEPLOY_DIR/public"
 
+          # Next standalone dapat melewatkan optional native packages milik
+          # Sharp. Salin package glibc Linux x64 beserta libvips secara eksplisit.
+          rm -rf "$DEPLOY_DIR/node_modules/sharp"
+          cp -aL node_modules/sharp "$DEPLOY_DIR/node_modules/sharp"
+
+          SHARP_RUNTIME_DIRS=(
+            node_modules/.pnpm/@img+sharp-linux-x64@*/node_modules/@img/sharp-linux-x64
+            node_modules/.pnpm/@img+sharp-libvips-linux-x64@*/node_modules/@img/sharp-libvips-linux-x64
+          )
+
+          for RUNTIME_DIR in "${SHARP_RUNTIME_DIRS[@]}"; do
+            cp -aL "$RUNTIME_DIR" "$DEPLOY_DIR/node_modules/@img/"
+          done
+
           test -f "$DEPLOY_DIR/server.js"
           test -d "$DEPLOY_DIR/public"
           test -d "$DEPLOY_DIR/.next/static"
+          test -d "$DEPLOY_DIR/node_modules/@img/sharp-linux-x64"
+          test -d "$DEPLOY_DIR/node_modules/@img/sharp-libvips-linux-x64"
+          find "$DEPLOY_DIR/node_modules/@img/sharp-libvips-linux-x64" \
+            -name 'libvips-cpp.so*' -print -quit | grep -q .
 
-          tar -C "$DEPLOY_DIR" -czf "$RUNNER_TEMP/amoechat-${GITHUB_SHA}.tar.gz" .
+          tar -C "$DEPLOY_DIR" -czf "$ARCHIVE" .
 
-      - name: Configure SSH
-        shell: bash
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
-        run: |
-          set -Eeuo pipefail
-
-          test -n "$SSH_PRIVATE_KEY"
-          test -n "$SSH_KNOWN_HOSTS"
-
-          install -d -m 700 "$HOME/.ssh"
-          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/amoechat_deploy"
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          chmod 600 "$HOME/.ssh/amoechat_deploy" "$HOME/.ssh/known_hosts"
-
-      - name: Prepare remote directories
-        shell: bash
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.SSH_PORT }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-        run: |
-          set -Eeuo pipefail
-
-          : "${SSH_HOST:?SSH_HOST belum diatur}"
-          : "${SSH_PORT:?SSH_PORT belum diatur}"
-          : "${SSH_USER:?SSH_USER belum diatur}"
-
-          ssh -i "$HOME/.ssh/amoechat_deploy" -p "$SSH_PORT" \
-            "$SSH_USER@$SSH_HOST" \
-            "mkdir -p '.amoechat-deploy/incoming'"
-
-      - name: Upload release
-        shell: bash
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.SSH_PORT }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-        run: |
-          set -Eeuo pipefail
-
-          scp -i "$HOME/.ssh/amoechat_deploy" -P "$SSH_PORT" \
-            "$RUNNER_TEMP/amoechat-${GITHUB_SHA}.tar.gz" \
-            "$SSH_USER@$SSH_HOST:.amoechat-deploy/incoming/${GITHUB_SHA}.tar.gz"
-
-      - name: Activate release
-        shell: bash
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.SSH_PORT }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          APP_PORT: ${{ vars.APP_PORT || '3010' }}
-          PM2_APP_NAME: ${{ vars.PM2_APP_NAME || 'amoechat' }}
-          SITE_DOMAIN: ${{ vars.SITE_DOMAIN || 'blog.amoechat.com' }}
-        run: |
-          set -Eeuo pipefail
-
-          ssh -i "$HOME/.ssh/amoechat_deploy" -p "$SSH_PORT" \
-            "$SSH_USER@$SSH_HOST" \
-            bash -s -- "$GITHUB_SHA" "$APP_PORT" "$PM2_APP_NAME" "$SITE_DOMAIN" <<'REMOTE'
-          set -Eeuo pipefail
-
-          RELEASE_ID="$1"
-          APP_PORT="$2"
-          PM2_APP_NAME="$3"
-          SITE_DOMAIN="$4"
-          DEPLOY_PATH="$HOME/htdocs/$SITE_DOMAIN"
-          RELEASES_DIR="$DEPLOY_PATH/.releases"
-          RELEASE_DIR="$RELEASES_DIR/$RELEASE_ID"
-          ARCHIVE="$HOME/.amoechat-deploy/incoming/$RELEASE_ID.tar.gz"
-          SHARED_DIR="$DEPLOY_PATH/shared"
-          CURRENT_LINK="$DEPLOY_PATH/current"
-          PREVIOUS_RELEASE=""
-
-          case "$DEPLOY_PATH" in
-            "$HOME/"*) ;;
-            *)
-              echo "Deploy dibatalkan: path berada di luar home SSH user."
-              exit 1
-              ;;
-          esac
-
-          test -d "$DEPLOY_PATH"
-          mkdir -p "$RELEASES_DIR" "$SHARED_DIR/public-images"
-
-          if [ -L "$CURRENT_LINK" ]; then
-            PREVIOUS_RELEASE="$(readlink -f "$CURRENT_LINK")"
-          fi
-
-          test -f "$ARCHIVE"
-          test -s "$SHARED_DIR/.env.production"
-
-          mkdir -p "$RELEASE_DIR"
-          tar -xzf "$ARCHIVE" -C "$RELEASE_DIR"
-          rm -f "$ARCHIVE"
-
-          test -f "$RELEASE_DIR/server.js"
-
-          # Semua media dashboard dipertahankan antar-rilis.
-          if [ -d "$RELEASE_DIR/public/images" ]; then
-            cp -a "$RELEASE_DIR/public/images/." "$SHARED_DIR/public-images/"
-            rm -rf "$RELEASE_DIR/public/images"
-          fi
-          ln -s "$SHARED_DIR/public-images" "$RELEASE_DIR/public/images"
-          ln -s "$SHARED_DIR/.env.production" "$RELEASE_DIR/.env"
-          ln -s "$SHARED_DIR/.env.production" "$RELEASE_DIR/.env.production"
-
-          ln -sfn "$RELEASE_DIR" "$DEPLOY_PATH/current.next"
-          mv -Tf "$DEPLOY_PATH/current.next" "$CURRENT_LINK"
-
-          export PATH="$HOME/.npm-global/bin:$PATH"
-          if ! command -v pm2 >/dev/null 2>&1; then
-            mkdir -p "$HOME/.npm-global"
-            npm config set prefix "$HOME/.npm-global"
-            npm install --global pm2@6
-          fi
-
-          if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
-            PORT="$APP_PORT" HOSTNAME="127.0.0.1" NODE_ENV="production" \
-              pm2 reload "$PM2_APP_NAME" --update-env
-          else
-            cd "$CURRENT_LINK"
-            PORT="$APP_PORT" HOSTNAME="127.0.0.1" NODE_ENV="production" \
-              pm2 start server.js --name "$PM2_APP_NAME" --time
-          fi
-
-          healthy=false
-          for attempt in 1 2 3 4 5 6 7 8 9 10; do
-            if curl --fail --silent --show-error --max-time 5 \
-              "http://127.0.0.1:$APP_PORT/" >/dev/null; then
-              healthy=true
-              break
-            fi
-            sleep 3
-          done
-
-          if [ "$healthy" != true ]; then
-            echo "Health check gagal. Menjalankan rollback."
-            if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
-              ln -sfn "$PREVIOUS_RELEASE" "$DEPLOY_PATH/current.rollback"
-              mv -Tf "$DEPLOY_PATH/current.rollback" "$CURRENT_LINK"
-              pm2 reload "$PM2_APP_NAME" --update-env
-            else
-              pm2 delete "$PM2_APP_NAME" || true
-            fi
-            exit 1
-          fi
-
-          pm2 save
-
-          mapfile -t OLD_RELEASES < <(
-            find "$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' |
-              sort -rn |
-              tail -n +6 |
-              cut -d' ' -f2-
-          )
-          for OLD_RELEASE in "${OLD_RELEASES[@]}"; do
-            case "$OLD_RELEASE" in
-              "$RELEASES_DIR/"*) rm -rf "$OLD_RELEASE" ;;
-            esac
-          done
-
-          echo "Release $RELEASE_ID aktif di port $APP_PORT."
-          REMOTE
-
-      - name: Verify public URL
-        shell: bash
-        env:
-          HEALTHCHECK_URL: ${{ vars.HEALTHCHECK_URL || env.DEFAULT_SITE_URL }}
-        run: |
-          set -Eeuo pipefail
-          curl --fail --location --silent --show-error \
-            --max-time 20 --retry 3 --retry-delay 3 \
-            "$HEALTHCHECK_URL/" >/dev/null
+      - name: Upload manual deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: amoechat-standalone-${{ github.sha }}
+          path: ${{ runner.temp }}/amoechat-${{ github.sha }}.tar.gz
+          if-no-files-found: error
+          retention-days: 7

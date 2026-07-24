@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { mkdir, rm, writeFile } from "fs/promises";
 import path from "path";
-import sharp from "sharp";
 import { isCmsAuthenticated, getSessionRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
@@ -36,6 +35,7 @@ const detectedImageTypes = {
 
 async function inspectImage(buffer: Buffer) {
   try {
+    const { default: sharp } = await import("sharp");
     const metadata = await sharp(buffer, { animated: true, limitInputPixels: 40_000_000 }).metadata();
     const detected = metadata.format ? detectedImageTypes[metadata.format as keyof typeof detectedImageTypes] : null;
     if (!detected || !metadata.width || !metadata.height) return null;
@@ -65,6 +65,7 @@ function withImageResponseFields<T extends { filePath: string }>(item: T, varian
 async function createOptimizedVariants(buffer: Buffer, fileName: string, mimeType: string): Promise<MediaVariant[]> {
   if (mimeType === "image/gif" || mimeType === "image/avif") return [];
 
+  const { default: sharp } = await import("sharp");
   const optimizedDir = path.join(process.cwd(), "public", "images", "optimized");
   await mkdir(optimizedDir, { recursive: true });
 

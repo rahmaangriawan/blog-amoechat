@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { buildPageMetadata } from "@/lib/metadata";
 
 export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildPageMetadata({
@@ -27,34 +28,34 @@ function formatDate(date?: Date | string | null) {
 }
 
 const getCachedBlogPosts = unstable_cache(
-  async () => {
-    try {
-      return await (prisma as any).article.findMany({
-        where: { type: "POST", isPublished: true },
-        orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-        take: 24,
-        select: {
-          title: true,
-          slug: true,
-          excerpt: true,
-          content: true,
-          featuredImage: true,
-          publishedAt: true,
-          createdAt: true,
-          category: { select: { name: true } },
-        },
-      });
-    } catch (error) {
-      console.warn("Public blog page uses fallback empty data because the database is unavailable.", error);
-      return [];
-    }
-  },
+  async () =>
+    (prisma as any).article.findMany({
+      where: { type: "POST", isPublished: true },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      take: 24,
+      select: {
+        title: true,
+        slug: true,
+        excerpt: true,
+        content: true,
+        featuredImage: true,
+        publishedAt: true,
+        createdAt: true,
+        category: { select: { name: true } },
+      },
+    }),
   ["public-blog-posts"],
   { revalidate: 300 },
 );
 
 export default async function BlogPage() {
-  const posts = await getCachedBlogPosts();
+  let posts: any[] = [];
+
+  try {
+    posts = await getCachedBlogPosts();
+  } catch (error) {
+    console.warn("Public blog page uses fallback empty data because the database is unavailable.", error);
+  }
 
   return (
     <>

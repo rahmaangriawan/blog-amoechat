@@ -23,6 +23,7 @@ import sanitizeHtml from "sanitize-html";
 import type { Metadata } from "sharp";
 import { encryptSecret } from "@/lib/secret-storage";
 import { publicImagePathToAbsolute } from "@/lib/media-path";
+import { BLOG_ARCHIVE_CACHE_TAG } from "@/lib/blog-archive";
 
 export async function saveGoogleIntegration(formData: FormData) {
   await requireSuperAdmin();
@@ -1182,6 +1183,7 @@ export async function saveArticle(formData: FormData) {
     revalidatePath(`${listPath}/${savedArticle.id}`);
     revalidatePath("/");
     if (savedArticle.type === "POST") {
+      updateTag(BLOG_ARCHIVE_CACHE_TAG);
       revalidatePath("/blog");
       revalidatePath(`/blog/${savedArticle.slug}`);
       revalidatePath("/author");
@@ -1226,6 +1228,7 @@ export async function deleteArticle(formData: FormData) {
   const deleted = await (prisma as any).article.delete({ where: { id } });
   revalidatePath(type === "PAGE" ? "/dashboard/articles/pages" : "/dashboard/articles/posts");
   if (type === "POST") {
+    updateTag(BLOG_ARCHIVE_CACHE_TAG);
     revalidatePath("/blog");
     revalidatePath(`/blog/${deleted.slug}`);
     revalidatePath("/");

@@ -9,11 +9,12 @@ import {
   pricingPlans,
   SIGNUP_URL,
 } from "@/lib/amoechat-content";
-import { prisma } from "@/lib/prisma";
+import { getBlogArchivePage } from "@/lib/blog-archive";
 import { getSeoGlobalSettings } from "@/lib/seo-settings";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const revalidate = 300;
+export const dynamic = "force-dynamic";
 const siteOrigin = (process.env.NEXT_PUBLIC_SITE_URL || "https://blog.amoechat.com").replace(/\/$/, "");
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -90,17 +91,8 @@ const securityFeatures = [
 
 async function getLatestArticles() {
   try {
-    return await prisma.article.findMany({
-      where: { type: "POST", isPublished: true },
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-      take: 3,
-      select: {
-        title: true,
-        slug: true,
-        excerpt: true,
-        featuredImage: true,
-      },
-    });
+    const archive = await getBlogArchivePage(1);
+    return archive.posts.slice(0, 3);
   } catch (error) {
     console.warn("Homepage blog section uses an empty state because articles are unavailable.", error);
     return [];

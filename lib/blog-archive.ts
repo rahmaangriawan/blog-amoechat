@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 export const BLOG_PAGE_SIZE = 12;
+export const BLOG_ARCHIVE_CACHE_TAG = "public-blog-archive";
 
 export type BlogArchivePost = {
   title: string;
@@ -56,5 +57,5 @@ export const getBlogArchivePage = unstable_cache(
     };
   },
   ["public-blog-archive"],
-  { revalidate: 300 },
+  { revalidate: 300, tags: [BLOG_ARCHIVE_CACHE_TAG] },
 );

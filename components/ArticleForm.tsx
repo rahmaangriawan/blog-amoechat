@@ -62,11 +62,14 @@ export function ArticleForm({
   error?: string;
 }) {
   const isPage = type === "PAGE";
-  const publishedAtValue = item?.publishedAt ? new Date(item.publishedAt).toISOString().slice(0, 10) : "";
-  const previewUrl = item?.slug
+  const [articleTitle, setArticleTitle] = useState(item?.title ?? "");
+  const [articleSlug, setArticleSlug] = useState(item?.slug ?? "");
+  const [excerpt, setExcerpt] = useState(item?.excerpt ?? "");
+  const [selectedAuthorId, setSelectedAuthorId] = useState(item?.authorId ?? authors?.[0]?.id ?? "");
+  const previewUrl = articleSlug
     ? isPage
-      ? `/${item.slug}`
-      : `/blog/${item.slug}`
+      ? `/${articleSlug}`
+      : `/blog/${articleSlug}`
     : null;
 
   // Featured image state
@@ -82,17 +85,6 @@ export function ArticleForm({
 
   async function handleSubmit(formData: FormData) {
     await saveArticle(formData);
-  }
-
-  // Auto-generate alt from filename
-  function generateAltFromFilename(filename: string): string {
-    // Remove extension and replace special chars with spaces
-    return filename
-      .replace(/\.[^/.]+$/, "")
-      .replace(/[-_]/g, " ")
-      .replace(/\d+/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
   }
 
   // Media picker functions
@@ -173,7 +165,7 @@ export function ArticleForm({
             <div className="panel grid gap-4 p-5">
               <label className="grid gap-2 text-sm font-semibold">
                 Judul
-                <input name="title" defaultValue={item?.title} required />
+                <input name="title" value={articleTitle} onChange={(event) => setArticleTitle(event.target.value)} required />
               </label>
               <div className="grid gap-2 text-sm font-semibold">
                 <span className="flex items-center justify-between">
@@ -184,11 +176,11 @@ export function ArticleForm({
                     </a>
                   ) : null}
                 </span>
-                <input name="slug" defaultValue={item?.slug} placeholder="otomatis jika kosong" />
+                <input name="slug" value={articleSlug} onChange={(event) => setArticleSlug(event.target.value)} placeholder="otomatis jika kosong" />
               </div>
               <label className="grid gap-2 text-sm font-semibold">
                 Ringkasan
-                <textarea name="excerpt" rows={3} defaultValue={item?.excerpt ?? ""} />
+                <textarea name="excerpt" rows={3} value={excerpt} onChange={(event) => setExcerpt(event.target.value)} />
               </label>
               <div className="grid gap-2 text-sm font-semibold">
                 <span>Konten</span>
@@ -199,10 +191,24 @@ export function ArticleForm({
             <SeoFields
               defaultTitle={item?.metaTitle}
               defaultDescription={item?.metaDescription}
+              fallbackTitle={articleTitle}
+              fallbackDescription={excerpt}
               previewUrl={previewUrl ?? undefined}
               enableCurrentYearToken={!isPage}
               contentHtml={contentHtml}
               featuredImage={featuredImagePreview}
+              featuredImageAlt={articleTitle}
+              slug={articleSlug}
+              excerpt={excerpt}
+              requireAuthor={!isPage}
+              authorComplete={
+                isPage ||
+                Boolean(
+                  (authors ?? []).find(
+                    (author) => author.id === selectedAuthorId && author.name.trim() && author.authorRole?.trim(),
+                  ),
+                )
+              }
             />
           </div>
 
@@ -251,7 +257,7 @@ export function ArticleForm({
                   <label className="grid gap-2 text-sm font-semibold">
                     Penulis
                     {authors && authors.length > 0 ? (
-                      <select name="authorId" defaultValue={item?.authorId ?? authors[0]?.id ?? ""}>
+                      <select name="authorId" value={selectedAuthorId} onChange={(event) => setSelectedAuthorId(event.target.value)}>
                         {authors.map((author) => (
                           <option key={author.id} value={author.id}>
                             {author.name}

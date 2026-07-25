@@ -1,7 +1,11 @@
-import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
+import { buildStaticPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = { title: "Kebijakan Privasi", description: "Kebijakan privasi Amoechat untuk akun, kontak, pesan, channel, dan penggunaan platform WhatsApp bisnis.", alternates: { canonical: "/kebijakan-privasi" } };
+export const metadata = buildStaticPageMetadata({
+  title: "Kebijakan Privasi",
+  description: "Kebijakan privasi Amoechat untuk akun, kontak, pesan, channel, dan penggunaan platform WhatsApp bisnis.",
+  canonical: "/kebijakan-privasi",
+});
 
 const sections = [
   { title: "Informasi yang kami proses", content: "Amoechat dapat memproses informasi akun, profil bisnis, anggota tim, konfigurasi channel, kontak pelanggan, isi pesan, template, event webhook, metadata pengiriman, serta data penggunaan platform." },

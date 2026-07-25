@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SIGNUP_URL } from "@/lib/amoechat-content";
+import { buildStaticPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: "Tentang Amoechat",
+export const metadata: Metadata = buildStaticPageMetadata({
+  title: "Tentang",
   description: "Kisah, misi, nilai, dan perjalanan Amoechat dalam membuat pemasaran WhatsApp lebih mudah diakses bisnis.",
-  alternates: { canonical: "/tentang" },
-};
+  canonical: "/tentang",
+});
 
 const values = [
   ["Pelanggan pertama", "Setiap keputusan dimulai dari kebutuhan pelanggan. Keberhasilan mereka adalah ukuran keberhasilan kami."],

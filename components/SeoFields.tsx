@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { resolveSeoTokens } from "@/lib/seo-tokens";
+import { resolveDocumentTitle, resolveSeoTokens } from "@/lib/seo-tokens";
 
 type PreviewMode = "mobile" | "desktop";
 
@@ -109,7 +109,15 @@ function hasGoodHeadingHierarchy(html: string) {
     previous = level;
   }
 
-  return levels.includes(2) || levels.includes(1);
+  return levels.includes(2);
+}
+
+function hasInternalLink(html: string) {
+  return /<a\b[^>]*\bhref\s*=\s*["'](?:\/(?!\/)|https?:\/\/(?:www\.)?blog\.amoechat\.com(?:\/|["']))/i.test(html);
+}
+
+function cleanExcerpt(value?: string | null) {
+  return textFromHtml(value || "");
 }
 
 function scoreItem(ok: boolean, points: number) {
@@ -139,17 +147,31 @@ function SeoChecklistItem({ ok, label, detail }: { ok: boolean; label: string; d
 export function SeoFields({
   defaultTitle,
   defaultDescription,
+  fallbackTitle,
+  fallbackDescription,
   previewUrl,
   enableCurrentYearToken = false,
   contentHtml = "",
   featuredImage,
+  featuredImageAlt,
+  slug,
+  excerpt,
+  authorComplete = true,
+  requireAuthor = false,
 }: {
   defaultTitle?: string | null;
   defaultDescription?: string | null;
+  fallbackTitle?: string | null;
+  fallbackDescription?: string | null;
   previewUrl?: string | null;
   enableCurrentYearToken?: boolean;
   contentHtml?: string | null;
   featuredImage?: string | null;
+  featuredImageAlt?: string | null;
+  slug?: string | null;
+  excerpt?: string | null;
+  authorComplete?: boolean;
+  requireAuthor?: boolean;
 }) {
   const [title, setTitle] = useState(defaultTitle ?? "");
   const [desc, setDesc] = useState(defaultDescription ?? "");
@@ -162,30 +184,40 @@ export function SeoFields({
   const DESC_GOOD_MAX = 160;
   const DESC_MAX = 170;
 
-  const previewTitle = enableCurrentYearToken ? resolveSeoTokens(title) : title;
+  const rawResolvedTitle = title.trim() || fallbackTitle?.trim() || "";
+  const previewTitle = resolveDocumentTitle(
+    enableCurrentYearToken ? resolveSeoTokens(rawResolvedTitle) : rawResolvedTitle,
+  );
+  const resolvedDescription = desc.trim() || cleanExcerpt(fallbackDescription || excerpt);
   const titleLength = previewTitle.length;
   const titleBar = charBar(titleLength, TITLE_MIN, TITLE_GOOD_MAX, TITLE_MAX);
-  const descBar = charBar(desc.length, DESC_MIN, DESC_GOOD_MAX, DESC_MAX);
+  const descBar = charBar(resolvedDescription.length, DESC_MIN, DESC_GOOD_MAX, DESC_MAX);
 
   const content = contentHtml ?? "";
   const wordCount = countWords(content);
   const headingLevels = getHeadingLevels(content);
-  const hasTable = /<table\b/i.test(content);
   const hasImage = Boolean(featuredImage) || /<img\b/i.test(content);
+  const hasImageAlt = Boolean(featuredImage && featuredImageAlt?.trim()) || /<img\b[^>]*\balt\s*=\s*["'][^"']+["']/i.test(content);
   const titleOk = titleLength >= TITLE_MIN && titleLength <= TITLE_GOOD_MAX;
-  const descOk = desc.length >= DESC_MIN && desc.length <= DESC_GOOD_MAX;
+  const descOk = resolvedDescription.length >= DESC_MIN && resolvedDescription.length <= DESC_GOOD_MAX;
+  const slugOk = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug?.trim() || "");
+  const excerptOk = cleanExcerpt(excerpt).length >= 50;
   const wordsOk = wordCount >= 400;
   const headingOk = hasGoodHeadingHierarchy(content);
-  const tableOk = hasTable;
-  const imageOk = hasImage;
+  const imageOk = hasImage && hasImageAlt;
+  const internalLinkOk = hasInternalLink(content);
+  const authorOk = !requireAuthor || authorComplete;
 
   const overallScore =
-    scoreItem(titleOk, 20) +
-    scoreItem(descOk, 20) +
-    scoreItem(wordsOk, 20) +
+    scoreItem(titleOk, 15) +
+    scoreItem(descOk, 15) +
+    scoreItem(slugOk, 10) +
+    scoreItem(excerptOk, 10) +
+    scoreItem(wordsOk, 15) +
     scoreItem(headingOk, 15) +
-    scoreItem(imageOk, 15) +
-    scoreItem(tableOk, 10);
+    scoreItem(imageOk, 10) +
+    scoreItem(internalLinkOk, 5) +
+    scoreItem(authorOk, 5);
 
   let overallColor = "bg-red-500";
   if (overallScore >= 85) overallColor = "bg-green-500";
@@ -234,12 +266,15 @@ export function SeoFields({
             Judul yang muncul di hasil pencarian Google.
             {enableCurrentYearToken ? " Gunakan %currentyear% untuk menampilkan tahun berjalan." : ""}
           </span>
+          <span className="break-words rounded-lg bg-[var(--background)] px-3 py-2 text-xs font-normal text-[var(--muted)]">
+            Hasil akhir: <strong className="text-[var(--foreground)]">{previewTitle}</strong>
+          </span>
         </label>
 
         <label className="grid gap-2 text-sm font-medium">
           <span className="flex items-center justify-between">
             Meta Description
-            <span className="text-[11px] text-[var(--muted)]">{desc.length}/{DESC_MAX}</span>
+            <span className="text-[11px] text-[var(--muted)]">{resolvedDescription.length}/{DESC_MAX}</span>
           </span>
           <textarea
             name="metaDescription"
@@ -257,7 +292,7 @@ export function SeoFields({
               />
             </div>
             <span className="text-[11px] text-[var(--muted)]">
-              {statusText(desc.length, DESC_MIN, DESC_GOOD_MAX, DESC_MAX)}
+              {statusText(resolvedDescription.length, DESC_MIN, DESC_GOOD_MAX, DESC_MAX)}
             </span>
           </div>
           <span className="text-xs font-normal text-[var(--muted)]">
@@ -273,11 +308,14 @@ export function SeoFields({
         </div>
         <ul className="grid gap-2 md:grid-cols-2">
           <SeoChecklistItem ok={titleOk} label="Title SEO" detail={`Ideal ${TITLE_MIN}-${TITLE_GOOD_MAX} karakter. Saat ini ${titleLength}.`} />
-          <SeoChecklistItem ok={descOk} label="Meta description" detail={`Ideal ${DESC_MIN}-${DESC_GOOD_MAX} karakter. Saat ini ${desc.length}.`} />
+          <SeoChecklistItem ok={descOk} label="Meta description" detail={`Ideal ${DESC_MIN}-${DESC_GOOD_MAX} karakter. Saat ini ${resolvedDescription.length}.`} />
+          <SeoChecklistItem ok={slugOk} label="Slug" detail={slugOk ? "Slug ringkas dan memakai format kebab-case." : "Gunakan huruf kecil, angka, dan tanda hubung."} />
+          <SeoChecklistItem ok={excerptOk} label="Ringkasan" detail={excerptOk ? "Ringkasan artikel tersedia." : "Tambahkan ringkasan minimal 50 karakter."} />
           <SeoChecklistItem ok={wordsOk} label="Jumlah kata" detail="Minimal 400 kata pada konten artikel." />
-          <SeoChecklistItem ok={headingOk} label="Hierarki heading" detail={headingLevels.length ? `Heading terdeteksi: ${headingLevels.map((level) => `H${level}`).join(", ")}.` : "Tambahkan H2/H3 yang runtut."} />
-          <SeoChecklistItem ok={imageOk} label="Gambar" detail={hasImage ? "Ada gambar unggulan atau gambar di konten." : "Tambahkan gambar unggulan atau gambar di artikel."} />
-          <SeoChecklistItem ok={tableOk} label="Tabel" detail={hasTable ? "Ada tabel di konten." : "Tambahkan tabel jika artikel berisi data/perbandingan."} />
+          <SeoChecklistItem ok={headingOk} label="Heading H2/H3" detail={headingLevels.length ? `Heading terdeteksi: ${headingLevels.map((level) => `H${level}`).join(", ")}.` : "Tambahkan H2/H3 yang runtut."} />
+          <SeoChecklistItem ok={imageOk} label="Gambar dan alt" detail={imageOk ? "Gambar dan teks alternatif tersedia." : "Tambahkan gambar beserta teks alternatif."} />
+          <SeoChecklistItem ok={internalLinkOk} label="Internal link" detail={internalLinkOk ? "Ada tautan ke halaman Amoechat lain." : "Tambahkan minimal satu tautan internal yang relevan."} />
+          <SeoChecklistItem ok={authorOk} label="Kelengkapan author" detail={authorOk ? "Nama dan peran author tersedia." : "Pilih author dengan nama dan peran yang lengkap."} />
         </ul>
       </div>
 
@@ -313,7 +351,7 @@ export function SeoFields({
       </div>
       <GooglePreview
         title={previewTitle || "Belum ada judul"}
-        description={desc}
+        description={resolvedDescription}
         url={previewUrl || "example.com/judul-artikel"}
         mode={previewMode}
       />

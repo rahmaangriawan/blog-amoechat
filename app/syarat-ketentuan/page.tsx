@@ -1,7 +1,11 @@
-import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
+import { buildStaticPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = { title: "Syarat dan Ketentuan", description: "Ketentuan penggunaan platform Amoechat untuk WhatsApp Official Meta Cloud API dan koneksi QR.", alternates: { canonical: "/syarat-ketentuan" } };
+export const metadata = buildStaticPageMetadata({
+  title: "Syarat dan Ketentuan",
+  description: "Ketentuan penggunaan platform Amoechat untuk WhatsApp Official Meta Cloud API dan koneksi QR.",
+  canonical: "/syarat-ketentuan",
+});
 
 const sections = [
   { title: "Penggunaan layanan", content: "Amoechat menyediakan inbox tim, kampanye, automation, template, widget, API, dan fitur terkait untuk membantu bisnis mengelola komunikasi digital." },

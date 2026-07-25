@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export type PublicAuthor = {
   id?: string;
+  updatedAt?: Date;
   name: string;
   slug: string;
   role: string;
@@ -13,6 +14,7 @@ export type PublicAuthor = {
 
 type AuthorSource = {
   id?: string;
+  updatedAt?: Date;
   name: string;
   authorSlug?: string | null;
   authorRole?: string | null;
@@ -58,6 +60,7 @@ export function toPublicAuthor(source: AuthorSource, fallback: PublicAuthor = de
 
   return {
     id: source.id,
+    updatedAt: source.updatedAt,
     name,
     slug,
     role,
@@ -73,6 +76,7 @@ async function getDatabaseAuthors(): Promise<PublicAuthor[]> {
     orderBy: [{ createdAt: "asc" }],
     select: {
       id: true,
+      updatedAt: true,
       name: true,
       authorSlug: true,
       authorRole: true,

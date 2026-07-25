@@ -15,7 +15,7 @@ export function SiteHeader({ initialLogo }: { initialLogo?: string }) {
   const headerLogo = initialLogo || "/images/logo-amoechat.webp";
 
   return (
-    <header className="sticky top-0 z-[9999] border-b border-[var(--line)] bg-white/95 backdrop-blur">
+    <header className="border-b border-[var(--line)] bg-white/95 backdrop-blur">
       <div className="container flex min-h-[76px] items-center justify-between gap-4">
         <Link href="/" aria-label="Amoechat Beranda" className="shrink-0 transition hover:opacity-80">
           <Image src={headerLogo} alt="Amoechat" width={170} height={44} priority sizes="170px" className="h-10 w-auto object-contain" />

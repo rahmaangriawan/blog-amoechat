@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatPlanPrice, getPricingPlan, pricingPlans, SIGNUP_URL } from "@/lib/amoechat-content";
+import { buildStaticPageMetadata } from "@/lib/metadata";
 import { buildWhatsAppHref, getPublicContactSettings } from "@/lib/public-contact";
 
 export function generateStaticParams() { return pricingPlans.map((plan) => ({ slug: plan.slug })); }
@@ -9,7 +10,11 @@ export function generateStaticParams() { return pricingPlans.map((plan) => ({ sl
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const plan = getPricingPlan((await params).slug);
   if (!plan) return { title: "Paket tidak ditemukan" };
-  return { title: `Paket ${plan.name}`, description: plan.description, alternates: { canonical: `/paket/${plan.slug}` } };
+  return buildStaticPageMetadata({
+    title: `Paket ${plan.name}`,
+    description: plan.description,
+    canonical: `/paket/${plan.slug}`,
+  });
 }
 
 export default async function PricingDetailPage({ params }: { params: Promise<{ slug: string }> }) {

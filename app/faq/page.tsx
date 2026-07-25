@@ -1,9 +1,13 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { faqItems, SIGNUP_URL } from "@/lib/amoechat-content";
+import { buildStaticPageMetadata } from "@/lib/metadata";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 
-export const metadata: Metadata = { title: "FAQ Amoechat", description: "Jawaban tentang WhatsApp Official, QR, paket, keamanan, upgrade, dan setup Amoechat.", alternates: { canonical: "/faq" } };
+export const metadata = buildStaticPageMetadata({
+  title: "FAQ",
+  description: "Jawaban tentang WhatsApp Official, QR, paket, keamanan, upgrade, dan setup Amoechat.",
+  canonical: "/faq",
+});
 
 export default function FaqPage() {
   const schema={"@context":"https://schema.org","@type":"FAQPage",mainEntity:faqItems.map(item=>({"@type":"Question",name:item.question,acceptedAnswer:{"@type":"Answer",text:item.answer}}))};

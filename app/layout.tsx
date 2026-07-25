@@ -85,7 +85,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="id" suppressHydrationWarning>
       <body suppressHydrationWarning>
         {measurementId ? <GoogleAnalytics measurementId={measurementId} /> : null}
-        <div data-public-chrome="header">
+        <div data-public-chrome="header" className="sticky top-0 z-50">
           <SiteHeader initialLogo={seo?.headerLogo || undefined} />
         </div>
         {children}

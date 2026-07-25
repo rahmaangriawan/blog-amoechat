@@ -1,12 +1,50 @@
-import type { Metadata } from "next";
 import Link from "next/link";
+import { buildStaticPageMetadata } from "@/lib/metadata";
 import { buildMailHref, buildWhatsAppHref, getPublicContactSettings } from "@/lib/public-contact";
 
-export const metadata: Metadata = { title: "Pusat Bantuan Amoechat", description: "Dapatkan bantuan setup channel Official atau QR, inbox tim, automation, API, dan paket Amoechat.", alternates: { canonical: "/bantuan" } };
+export const metadata = buildStaticPageMetadata({
+  title: "Pusat Bantuan",
+  description: "Dapatkan bantuan setup channel Official atau QR, inbox tim, automation, API, dan paket Amoechat.",
+  canonical: "/bantuan",
+});
 
 export default async function HelpPage() {
   const contact=await getPublicContactSettings();
   const wa=buildWhatsAppHref(contact.whatsappNumber,"Halo Amoechat, saya membutuhkan bantuan terkait akun dan channel WhatsApp.");
   const topics=[["Setup channel","Panduan menghubungkan Meta Cloud API dan scan QR Linked Devices."],["Inbox dan tim","Bantuan assignment, hak akses, kontak, dan handoff percakapan."],["Kampanye dan template","Pelajari broadcast, segmentasi, template Meta, serta status pengiriman."],["Automation dan API","Bantuan workflow, webhook, widget website, dan integrasi sistem."]];
-  return <main><section className="bg-[var(--primary-softer)] py-16 md:py-24"><div className="container max-w-4xl"><p className="text-sm font-black text-[var(--primary-strong)]">Pusat Bantuan</p><h1 className="mt-4 text-4xl font-black tracking-tight md:text-6xl">Temukan jawaban dan lanjutkan pekerjaan Anda</h1><p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--muted)]">Mulai dari setup channel sampai integrasi API, tim Amoechat siap membantu.</p></div></section><section className="py-16 md:py-24"><div className="container grid gap-6 md:grid-cols-2">{topics.map(([title,description])=><article key={title} className="rounded-2xl border border-[var(--line)] p-7"><h2 className="text-xl font-black">{title}</h2><p className="mt-4 leading-7 text-[var(--muted)]">{description}</p></article>)}</div></section><section className="pb-20"><div className="container rounded-2xl bg-[#071b11] p-8 text-white md:p-12"><h2 className="text-3xl font-black">Butuh bantuan langsung?</h2><p className="mt-4 max-w-xl text-white/70">Hubungi tim kami melalui WhatsApp atau email. Sertakan email akun dan ringkasan kendala agar kami dapat membantu lebih cepat.</p><div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link href={wa} target="_blank" rel="noopener noreferrer" className="button">Chat WhatsApp</Link><Link href={buildMailHref(contact.email)} className="button !border-white/25 !bg-white/10 !text-white">Kirim email</Link></div></div></section></main>;
+  return (
+    <main>
+      <section className="bg-[var(--primary-softer)] py-16 md:py-24">
+        <div className="container max-w-4xl">
+          <p className="text-sm font-black text-[var(--primary-strong)]">Pusat Bantuan</p>
+          <h1 className="mt-4 text-4xl font-black tracking-tight md:text-6xl">Temukan jawaban dan lanjutkan pekerjaan Anda</h1>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--muted)]">Mulai dari setup channel sampai integrasi API, tim Amoechat siap membantu.</p>
+        </div>
+      </section>
+      <section className="py-16 md:py-24">
+        <div className="container grid gap-6 md:grid-cols-2">
+          {topics.map(([title,description]) => (
+            <article key={title} className="rounded-2xl border border-[var(--line)] p-7">
+              <h2 className="text-xl font-black">{title}</h2>
+              <p className="mt-4 leading-7 text-[var(--muted)]">{description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="pb-12 md:pb-20">
+        <div className="container">
+          <div className="rounded-2xl bg-[#071b11] p-6 text-white sm:p-8 md:p-12">
+            <h2 className="text-2xl font-black leading-tight sm:text-3xl">Butuh bantuan langsung?</h2>
+            <p className="mt-4 max-w-xl leading-7 text-white/70">
+              Hubungi tim kami melalui WhatsApp atau email. Sertakan email akun dan ringkasan kendala agar kami dapat membantu lebih cepat.
+            </p>
+            <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
+              <Link href={wa} target="_blank" rel="noopener noreferrer" className="button w-full sm:w-auto">Chat WhatsApp</Link>
+              <Link href={buildMailHref(contact.email)} className="button w-full !border !border-white/30 !bg-white/10 !text-white hover:!bg-white/15 sm:w-auto">Kirim email</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
 }

@@ -14,6 +14,7 @@ import { getSeoGlobalSettings } from "@/lib/seo-settings";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const revalidate = 300;
+const siteOrigin = (process.env.NEXT_PUBLIC_SITE_URL || "https://blog.amoechat.com").replace(/\/$/, "");
 
 export async function generateMetadata(): Promise<Metadata> {
   const seo = await getSeoGlobalSettings();
@@ -22,16 +23,19 @@ export async function generateMetadata(): Promise<Metadata> {
     seo?.metaDescription ||
     "Kelola WhatsApp Official Meta Cloud API dan koneksi QR, inbox tim, broadcast, automation, template, widget, serta API dalam satu workspace Amoechat.";
   const ogImage = seo?.ogImage || seo?.ogDefaultImage || "/images/logo-amoechat.png";
+  const canonical = new URL(seo?.canonicalUrl || "/", `${siteOrigin}/`).toString();
 
   return {
     title: { absolute: title },
     description,
     keywords: seo?.metaKeywords || undefined,
-    alternates: { canonical: seo?.canonicalUrl || "/" },
+    alternates: { canonical },
     openGraph: {
       title: seo?.ogTitle || title,
       description: seo?.ogDescription || description,
       type: "website",
+      url: canonical,
+      siteName: seo?.siteTitle || "Amoechat",
       images: [{ url: ogImage }],
     },
     twitter: {
@@ -109,15 +113,19 @@ export default async function HomePage() {
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": `${siteOrigin}/#organization`,
     name: "Amoechat",
-    url: "https://blog.amoechat.com",
-    logo: "https://blog.amoechat.com/images/logo-amoechat.png",
+    url: siteOrigin,
+    logo: `${siteOrigin}/images/logo-amoechat.png`,
     description: "Platform WhatsApp untuk bisnis dengan koneksi Meta Cloud API dan QR.",
   };
   const softwareSchema = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
+    "@id": `${siteOrigin}/#software`,
     name: "Amoechat",
+    url: siteOrigin,
+    provider: { "@id": `${siteOrigin}/#organization` },
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     description: "Inbox tim, broadcast, workflow, template, widget, webhook, dan API untuk operasi WhatsApp bisnis.",
@@ -126,7 +134,7 @@ export default async function HomePage() {
       name: plan.name,
       price: plan.priceIdr,
       priceCurrency: "IDR",
-      url: `https://blog.amoechat.com/paket/${plan.slug}`,
+      url: `${siteOrigin}/paket/${plan.slug}`,
     })),
     aggregateRating: { "@type": "AggregateRating", ratingValue: "4.9", bestRating: "5", ratingCount: "10000" },
   };

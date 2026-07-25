@@ -8,7 +8,8 @@ import { buildWhatsAppHref, getPublicContactSettings } from "@/lib/public-contac
 export const metadata: Metadata = {
   title: "Daftar Magang Online",
   description: "Form pendaftaran program magang Amoechat untuk siswa SMK, mahasiswa, dan talenta awal.",
-  alternates: { canonical: "/program" },
+  alternates: { canonical: "/program/daftar" },
+  robots: { index: false, follow: true },
   openGraph: {
     title: "Daftar Program Magang Amoechat",
     description: "Ajukan pendaftaran untuk belajar produk SaaS, automation, API, content, sales, atau customer success di Amoechat.",

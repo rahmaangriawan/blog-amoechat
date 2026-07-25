@@ -19,10 +19,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!author) return {};
 
   return buildPageMetadata({
-    title: `${author.name} | Amoechat`,
+    title: author.name,
     description: author.bio,
     canonical: `/author/${author.slug}`,
     ogType: "profile",
+    featuredImage: author.avatarUrl,
     imageAlt: author.name,
   });
 }
@@ -67,24 +68,34 @@ export default async function AuthorDetailPage({ params }: { params: Promise<{ s
   }
 
   const siteOrigin = (process.env.NEXT_PUBLIC_SITE_URL || "https://blog.amoechat.com").replace(/\/$/, "");
-  const personJsonLd = {
+  const authorUrl = `${siteOrigin}/author/${author.slug}`;
+  const profileJsonLd = {
     "@context": "https://schema.org",
-    "@type": "Person",
-    name: author.name,
-    url: `${siteOrigin}/author/${author.slug}`,
-    jobTitle: author.role,
-    description: author.bio,
-    worksFor: {
-      "@type": "Organization",
-      name: "Amoechat",
-      url: siteOrigin,
+    "@type": "ProfilePage",
+    name: `Profil ${author.name}`,
+    url: authorUrl,
+    ...(author.updatedAt ? { dateModified: author.updatedAt.toISOString() } : {}),
+    mainEntity: {
+      "@type": "Person",
+      "@id": `${authorUrl}#person`,
+      name: author.name,
+      url: authorUrl,
+      jobTitle: author.role,
+      description: author.bio,
+      ...(author.avatarUrl ? { image: author.avatarUrl } : {}),
+      worksFor: {
+        "@type": "Organization",
+        "@id": `${siteOrigin}/#organization`,
+        name: "Amoechat",
+        url: siteOrigin,
+      },
     },
   };
 
   return (
     <>
       <main className="container py-12 section-mobile-padding">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(personJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(profileJsonLd) }} />
 
         <section className="rounded-[24px] border border-[var(--line)] bg-white p-6 md:p-8">
           <div className="flex flex-col gap-5 md:flex-row md:items-center">

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { platformFeatures, SIGNUP_URL } from "@/lib/amoechat-content";
+import { buildStaticPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildStaticPageMetadata({
   title: "Fitur Platform WhatsApp Bisnis",
   description: "Inbox tim, broadcast, workflow, template, widget website, webhook, dan API untuk WhatsApp Official serta koneksi QR.",
-  alternates: { canonical: "/fitur" },
-};
+  canonical: "/fitur",
+});
 
 export default function FeaturesPage() {
   return (
@@ -46,10 +47,15 @@ export default function FeaturesPage() {
       </section>
 
       <section className="py-16 md:py-24">
-        <div className="container rounded-2xl border border-[var(--line)] bg-white p-8 md:p-12">
-          <h2 className="max-w-3xl text-3xl font-black md:text-5xl">Bangun alur kustom melalui API dan webhook</h2>
-          <p className="mt-5 max-w-2xl leading-8 text-[var(--muted)]">Kirim pesan secara programatik, teruskan event ke sistem Anda, dan hubungkan Amoechat dengan CRM, toko, atau aplikasi internal.</p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link href={SIGNUP_URL} target="_blank" rel="noopener noreferrer" className="button">Buat akun gratis</Link><Link href="/bantuan" className="button secondary">Bicara dengan tim</Link></div>
+        <div className="container">
+          <div className="rounded-2xl border border-[var(--line)] bg-white p-6 sm:p-8 md:p-12">
+            <h2 className="max-w-3xl text-3xl font-black md:text-5xl">Bangun alur kustom melalui API dan webhook</h2>
+            <p className="mt-5 max-w-2xl leading-8 text-[var(--muted)]">Kirim pesan secara programatik, teruskan event ke sistem Anda, dan hubungkan Amoechat dengan CRM, toko, atau aplikasi internal.</p>
+            <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
+              <Link href={SIGNUP_URL} target="_blank" rel="noopener noreferrer" className="button w-full sm:w-auto">Buat akun gratis</Link>
+              <Link href="/bantuan" className="button secondary w-full sm:w-auto">Bicara dengan tim</Link>
+            </div>
+          </div>
         </div>
       </section>
     </main>

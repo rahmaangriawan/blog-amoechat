@@ -260,7 +260,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": "BlogPosting",
     mainEntityOfPage: {
       "@type": "WebPage",
       "@id": absoluteUrl,
@@ -272,12 +272,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     dateModified: new Date(item.updatedAt || item.publishedAt || item.createdAt).toISOString(),
     author: {
       "@type": "Person",
+      "@id": `${siteOrigin}/author/${author.slug}#person`,
       name: author.name,
       url: `${siteOrigin}/author/${author.slug}`,
     },
     publisher: {
       "@type": "Organization",
+      "@id": `${siteOrigin}/#organization`,
       name: publisherName,
+      url: siteOrigin,
       logo: {
         "@type": "ImageObject",
         url: publisherLogo,

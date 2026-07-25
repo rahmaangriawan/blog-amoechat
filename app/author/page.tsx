@@ -6,7 +6,7 @@ import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildPageMetadata({
-    title: "Author",
+    title: "Penulis",
     description: "Daftar penulis Amoechat yang membahas WhatsApp marketing, automation, customer engagement, dan API.",
     canonical: "/author",
     ogType: "website",

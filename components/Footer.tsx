@@ -21,11 +21,11 @@ export function Footer({ initialLogo, contact }: { initialLogo?: string; contact
   const salesHref = buildWhatsAppHref(contact.whatsappNumber, "Halo Amoechat, saya ingin konsultasi solusi WhatsApp untuk bisnis.");
   return (
     <footer className="bg-[#071b11] py-14 text-white md:py-20">
-      <div className="container grid gap-12 pb-10 lg:grid-cols-[1.3fr_0.7fr_0.7fr_0.8fr]">
+      <div className="container grid gap-10 pb-14 sm:gap-12 md:pb-16 lg:grid-cols-[1.3fr_0.7fr_0.7fr_0.8fr]">
         <div><Image src={footerLogo} alt="Amoechat" width={2075} height={561} sizes="180px" className="h-auto w-[180px]"/><p className="mt-6 max-w-sm leading-7 text-white/70">Platform WhatsApp Official Meta Cloud API dan koneksi QR untuk inbox tim, kampanye, automation, template, widget, serta API.</p><div className="mt-7 flex flex-wrap gap-3"><Link href={SIGNUP_URL} target="_blank" rel="noopener noreferrer" className="button whitespace-nowrap">Mulai gratis</Link><Link href={salesHref} target="_blank" rel="noopener noreferrer" className="button whitespace-nowrap !border-white/25 !bg-white/10 !text-white">Hubungi sales</Link></div></div>
-        <FooterColumn title="Produk" links={productLinks}/><FooterColumn title="Perusahaan" links={companyLinks}/><div><FooterColumn title="Dukungan" links={supportLinks}/><div className="mt-7 text-sm text-white/70"><Link href={buildMailHref(contact.email)} className="hover:text-white">{contact.email}</Link><p className="mt-2">{contact.whatsappDisplay}</p></div></div>
+        <FooterColumn title="Produk" links={productLinks}/><FooterColumn title="Perusahaan" links={companyLinks}/><div><FooterColumn title="Dukungan" links={supportLinks}/><div className="mt-8 grid gap-3 text-sm leading-6 text-white/70"><Link href={buildMailHref(contact.email)} className="w-fit hover:text-white">{contact.email}</Link><p>{contact.whatsappDisplay}</p></div></div>
       </div>
-      <div className="container flex flex-col gap-3 border-t border-white/15 pt-[30px] text-sm text-white/60 md:flex-row md:items-center md:justify-between"><p className="shrink-0">© 2026 Amoechat. Seluruh hak dilindungi.</p><p className="max-w-3xl text-xs leading-6 md:text-right">WhatsApp dan Meta adalah merek dagang pemiliknya masing-masing. Koneksi QR bukan layanan resmi Meta atau WhatsApp.</p></div>
+      <div className="container flex flex-col gap-5 border-t border-white/15 pt-8 text-sm leading-6 text-white/60 md:flex-row md:items-center md:justify-between md:gap-8 md:pt-[30px]"><p className="shrink-0">© 2026 Amoechat. Seluruh hak dilindungi.</p><p className="max-w-3xl text-xs leading-6 md:text-right">WhatsApp dan Meta adalah merek dagang pemiliknya masing-masing. Koneksi QR bukan layanan resmi Meta atau WhatsApp.</p></div>
     </footer>
   );
 }
